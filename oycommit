@@ -1,0 +1,76 @@
+#!/bin/bash
+
+scriptName=oycommit
+
+# Gather all the files for the git repo for asterisk and copy them to the local git directory
+
+asteriskDir="/etc/asterisk"
+customscriptsDir="/usr/share/asterisk/custom-script"
+agiDir="/usr/share/asterisk/agi-bin"
+astdbDir="/var/lib/asterisk"
+gitDir="/root/oysterisk"
+
+# files
+file_asterisk_conf="$asteriskDir/asterisk.conf"
+file_extensions_conf="$asteriskDir/extensions.conf"
+file_features_conf="$asteriskDir/features.conf"
+file_sip_conf="$asteriskDir/sip.conf"
+
+file_callerannounce_sh="$customscriptsDir/caller-announce.sh"
+file_timetts_sh="$customscriptsDir/timetts.sh"
+file_sendrec_sh="$customscriptsDir/sendrec.sh"
+
+file_googletts_agi="$agiDir/googletts.agi"
+
+# file_astdb="$astdbDir/astdb.sqlite3"
+
+
+# Here be dragons
+
+error_exit()
+{
+    echo "ERROR, ABORTING!"
+    usage
+    exit 1
+}
+
+usage()
+{
+    echo "usage: $scriptName [-m | --message \"Git commit message\"]"
+}
+
+
+# checking for a commit message and if it is valid
+
+if [ "$1" = "" ]; then
+    commit_message=''
+fi
+
+while [ "$1" != "" ]; do
+    case $1 in
+        -m | --message )    shift
+                            if [ "$1" = "" ]; then
+				echo "No commit message entered. Aborting."
+				error_exit
+			    else 
+				commit_message="$1"
+			    fi
+                            ;;
+        * )                 usage
+                            exit
+                            ;;
+    esac
+    shift
+done
+
+for filevarName in $(compgen -A variable | grep ^file); do
+#    echo "filevarName: \"$filevarName\""
+    fileName="${!filevarName}"
+#    echo "fileName: \"$fileName\""
+    echo "copying $fileName..."
+    cp "$fileName" "$gitDir$fileName" && echo "Done." || error_exit
+    echo "Staging $gitDir$fileName..."
+    cd "$gitDir" && git add "${fileName:1}" && echo "Done." || error_exit
+done
+
+cd "$gitDir" && echo "Committing..." && git commit -m "$commit_message" && git push -u origin master && echo "Done." || error_exit
